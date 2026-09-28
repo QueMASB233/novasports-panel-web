@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { linksApi, rankingsApi, type LinksFilter } from '@/api/endpoints';
+import { useMeta } from '@/hooks/useMeta';
 import { TypeBadge } from '@/ui/Badge';
 import { IconCheck, IconUnlink } from '@/ui/Icons';
 import { useToast } from '@/ui/Toast';
@@ -21,6 +22,8 @@ const TABS: Segment<Tab>[] = [
 ];
 
 export function LinksPage() {
+  const meta = useMeta();
+  const positionLabel = meta.data?.entry_columns?.find((c) => c.key === 'ranking_position')?.label;
   const [tab, setTab] = useState<Tab>('pending');
   const [rankingId, setRankingId] = useState('');
   const [photoEntry, setPhotoEntry] = useState<{ id: string; name: string } | null>(null);
@@ -66,7 +69,7 @@ export function LinksPage() {
   const askApprove = async (l: LinkedEntry) => {
     const ok = await confirm({
       title: 'Aprobar vínculo',
-      message: `Se confirmará la identidad de "${l.matched_athlete?.full_name || l.player_name}" y su OVR se recalculará desde este ranking.`,
+      message: `Se confirmará la identidad de "${l.matched_athlete?.full_name || l.player_name}". El OVR de este ranking se aplica al confirmar.`,
       confirmLabel: 'Aprobar',
     });
     if (ok) approve.mutate(l.id);
@@ -132,7 +135,7 @@ export function LinksPage() {
               <th className="th">Jugador (app)</th>
               <th className="th">Entrada</th>
               <th className="th">Ranking</th>
-              <th className="th w-24 text-right">Puesto</th>
+              <th className="th w-28 text-right">{positionLabel || '…'}</th>
               <th className="th w-28">Estado</th>
               <th className="th w-32">Verificación</th>
               <th className="th w-40">Vinculado</th>

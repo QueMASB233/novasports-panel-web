@@ -76,7 +76,7 @@ export const rankingsApi = {
 export type EntryInput = {
   player_name: string;
   ranking_position: number;
-  points?: number;
+  category_position?: number | null;
   country?: string;
   national_category?: string;
 };

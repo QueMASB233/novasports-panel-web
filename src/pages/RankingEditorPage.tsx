@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { entriesApi, rankingsApi } from '@/api/endpoints';
+import { entriesApi, rankingsApi, type EntryInput } from '@/api/endpoints';
 import { useMeta } from '@/hooks/useMeta';
 import { TypeBadge, StatusDot } from '@/ui/Badge';
 import {
@@ -10,7 +10,7 @@ import {
 } from '@/ui/Icons';
 import { useToast } from '@/ui/Toast';
 import { useConfirm } from '@/ui/Confirm';
-import type { Entry, RankingSummary, RankingType } from '@/types';
+import type { Entry, EntryColumn, RankingSummary, RankingType } from '@/types';
 import { ImportEntriesPanel } from './ImportEntriesPanel';
 
 export function RankingEditorPage() {
@@ -299,6 +299,20 @@ function HeaderEdit({
   );
 }
 
+const NUMERIC_ENTRY_KEYS = new Set(['ranking_position', 'category_position']);
+
+function columnsFor(columns: EntryColumn[] | undefined, rankingType: string) {
+  return (columns || []).filter(
+    (c) => !c.ranking_types?.length || c.ranking_types.includes(rankingType),
+  );
+}
+
+function entryCell(entry: Entry, key: string) {
+  const value = entry[key as keyof Entry];
+  if (value == null || value === '') return '—';
+  return String(value);
+}
+
 // ---------- entries table ----------
 function EntriesTable({
   entries, loading, error, rankingId, rankingType,
@@ -309,22 +323,18 @@ function EntriesTable({
   rankingId: string;
   rankingType: RankingType;
 }) {
-  const isNational = rankingType === 'national';
+  const meta = useMeta();
+  const columns = useMemo(
+    () => columnsFor(meta.data?.entry_columns, rankingType),
+    [meta.data, rankingType],
+  );
   const qc = useQueryClient();
   const toast = useToast();
   const confirm = useConfirm();
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  const sorted = useMemo(() => {
-    return [...entries].sort((a, b) => {
-      const pa = a.ranking_position ?? 999999;
-      const pb = b.ranking_position ?? 999999;
-      return pa - pb;
-    });
-  }, [entries]);
-
   const patch = useMutation({
-    mutationFn: ({ id, body }: { id: string; body: any }) => entriesApi.patch(id, body),
+    mutationFn: ({ id, body }: { id: string; body: EntryInput }) => entriesApi.patch(id, body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['ranking-entries', rankingId] });
       qc.invalidateQueries({ queryKey: ['ranking', rankingId] });
@@ -351,33 +361,48 @@ function EntriesTable({
     if (ok) remove.mutate(e.id);
   };
 
-  const colSpan = isNational ? 7 : 6;
+  const colSpan = columns.length + 2;
   return (
-    <div className="card overflow-hidden">
+    <div className="card overflow-x-auto">
       <table className="w-full">
         <thead className="bg-white/[.02]">
           <tr>
-            <th className="th w-16 text-right">#</th>
-            <th className="th">Jugador</th>
-            {isNational && <th className="th w-32">Categoría</th>}
-            <th className="th w-24">País</th>
-            <th className="th w-28 text-right">Puntos</th>
+            {columns.map((col) => (
+              <th
+                key={col.key}
+                className={
+                  'th ' + (NUMERIC_ENTRY_KEYS.has(col.key) ? 'text-right' : 'text-left')
+                }
+                title={col.hint}
+              >
+                <div>{col.label}</div>
+                {col.hint && (
+                  <div className="mt-0.5 max-w-[16rem] text-[10px] font-normal normal-case tracking-normal text-white/40 leading-snug">
+                    {col.hint}
+                  </div>
+                )}
+              </th>
+            ))}
             <th className="th">Vínculo</th>
             <th className="th w-28 text-right">Acciones</th>
           </tr>
         </thead>
         <tbody>
-          {loading && <tr><td className="td text-white/50" colSpan={colSpan}>Cargando…</td></tr>}
+          {(loading || meta.isLoading) && (
+            <tr><td className="td text-white/50" colSpan={colSpan}>Cargando…</td></tr>
+          )}
           {error && <tr><td className="td text-red-300" colSpan={colSpan}>{error.message}</td></tr>}
-          {!loading && sorted.length === 0 && (
+          {!loading && !meta.isLoading && entries.length === 0 && (
             <tr><td className="td text-white/50" colSpan={colSpan}>
               Sin entradas. Añade una o importa una lista.
             </td></tr>
           )}
-          {sorted.map(e => (
+          {!meta.isLoading && entries.map(e => (
             editingId === e.id ? (
               <InlineEditRow
-                key={e.id} entry={e}
+                key={e.id}
+                entry={e}
+                columns={columns}
                 rankingType={rankingType}
                 onCancel={() => setEditingId(null)}
                 onSave={(body) => patch.mutate({ id: e.id, body })}
@@ -385,19 +410,18 @@ function EntriesTable({
               />
             ) : (
               <tr key={e.id} className="hover:bg-white/[.02]">
-                <td className="td text-right tabular-nums text-white/60">
-                  {e.ranking_position ?? '—'}
-                </td>
-                <td className="td font-medium">{e.player_name}</td>
-                {isNational && (
-                  <td className="td text-white/70">
-                    {e.national_category_label || e.national_category || '—'}
+                {columns.map((col) => (
+                  <td
+                    key={col.key}
+                    className={
+                      'td ' +
+                      (col.key === 'player_name' ? 'font-medium ' : 'text-white/70 ') +
+                      (NUMERIC_ENTRY_KEYS.has(col.key) ? 'text-right tabular-nums' : '')
+                    }
+                  >
+                    {entryCell(e, col.key)}
                   </td>
-                )}
-                <td className="td text-white/60">{e.country || '—'}</td>
-                <td className="td text-right tabular-nums text-white/70">
-                  {e.points ?? '—'}
-                </td>
+                ))}
                 <td className="td">
                   {e.matched_athlete ? (
                     <div className="flex items-center gap-2 text-xs">
@@ -456,74 +480,89 @@ function EntriesTable({
 }
 
 function InlineEditRow({
-  entry, rankingType, onCancel, onSave, saving,
+  entry, columns, rankingType, onCancel, onSave, saving,
 }: {
   entry: Entry;
+  columns: EntryColumn[];
   rankingType: RankingType;
   onCancel: () => void;
-  onSave: (body: {
-    player_name: string; ranking_position: number;
-    points?: number; country?: string; national_category?: string;
-  }) => void;
+  onSave: (body: EntryInput) => void;
   saving: boolean;
 }) {
   const meta = useMeta();
-  const isNational = rankingType === 'national';
+  const showCategory = rankingType === 'national' || columns.some((c) => c.key === 'national_category_label');
   const [name, setName] = useState(entry.player_name);
   const [pos, setPos] = useState(String(entry.ranking_position ?? ''));
   const [country, setCountry] = useState(entry.country ?? '');
-  const [points, setPoints] = useState(entry.points != null ? String(entry.points) : '');
+  const [categoryPosition, setCategoryPosition] = useState(
+    entry.category_position != null ? String(entry.category_position) : '',
+  );
   const [nationalCategory, setNationalCategory] = useState(entry.national_category ?? '');
 
   const save = () => {
     const p = Number(pos);
-    if (!name.trim() || !Number.isFinite(p)) return;
-    if (isNational && !nationalCategory) return;
-    const body: any = { player_name: name.trim(), ranking_position: p };
-    if (country.trim()) body.country = country.trim().toUpperCase();
-    if (isNational) {
-      body.national_category = nationalCategory;
-    } else if (points.trim()) {
-      body.points = Number(points);
-    }
+    if (!name.trim() || !Number.isFinite(p) || p < 1) return;
+    if (showCategory && !nationalCategory) return;
+    const body: EntryInput = {
+      player_name: name.trim(),
+      ranking_position: p,
+      category_position: categoryPosition.trim() ? Number(categoryPosition) : null,
+    };
+    if (country) body.country = country;
+    if (showCategory) body.national_category = nationalCategory;
     onSave(body);
   };
 
   return (
     <tr className="bg-white/[.02]">
-      <td className="td">
-        <input className="input !py-1 !px-2 w-16 text-right" value={pos}
-          onChange={(e) => setPos(e.target.value.replace(/[^0-9]/g, ''))} />
-      </td>
-      <td className="td">
-        <input className="input !py-1 !px-2" value={name} onChange={(e) => setName(e.target.value)} />
-      </td>
-      {isNational && (
-        <td className="td">
-          <select
-            className="input !py-1 !px-2"
-            value={nationalCategory}
-            onChange={(e) => setNationalCategory(e.target.value)}
-          >
-            <option value="">—</option>
-            {meta.data?.national_categories?.map(c => (
-              <option key={c.id} value={c.id}>{c.label}</option>
-            ))}
-          </select>
+      {columns.map((col) => (
+        <td key={col.key} className="td">
+          {col.key === 'player_name' && (
+            <div className="space-y-1.5 min-w-[180px]">
+              <input className="input !py-1 !px-2" value={name} onChange={(e) => setName(e.target.value)} />
+              <select
+                className="input !py-1 !px-2"
+                value={country}
+                onChange={(e) => setCountry(e.target.value)}
+                aria-label="País"
+              >
+                <option value="">País…</option>
+                {meta.data?.countries.map(c => (
+                  <option key={c.code} value={c.code}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+          {col.key === 'national_category_label' && (
+            <select
+              className="input !py-1 !px-2"
+              value={nationalCategory}
+              onChange={(e) => setNationalCategory(e.target.value)}
+            >
+              <option value="">—</option>
+              {meta.data?.national_categories?.map(c => (
+                <option key={c.id} value={c.id}>{c.label}</option>
+              ))}
+            </select>
+          )}
+          {col.key === 'ranking_position' && (
+            <input
+              className="input !py-1 !px-2 w-24 text-right tabular-nums"
+              inputMode="numeric"
+              value={pos}
+              onChange={(e) => setPos(e.target.value.replace(/[^0-9]/g, ''))}
+            />
+          )}
+          {col.key === 'category_position' && (
+            <input
+              className="input !py-1 !px-2 w-24 text-right tabular-nums"
+              inputMode="numeric"
+              value={categoryPosition}
+              onChange={(e) => setCategoryPosition(e.target.value.replace(/[^0-9]/g, ''))}
+            />
+          )}
         </td>
-      )}
-      <td className="td">
-        <input className="input !py-1 !px-2 w-20 uppercase" value={country}
-          onChange={(e) => setCountry(e.target.value)} maxLength={3} />
-      </td>
-      <td className="td">
-        {isNational ? (
-          <span className="text-white/40 text-xs">—</span>
-        ) : (
-          <input className="input !py-1 !px-2 w-24 text-right" value={points}
-            onChange={(e) => setPoints(e.target.value.replace(/[^0-9.]/g, ''))} />
-        )}
-      </td>
+      ))}
       <td className="td text-white/40">—</td>
       <td className="td">
         <div className="flex justify-end gap-1">
@@ -550,25 +589,24 @@ function AddEntryPanel({
   const qc = useQueryClient();
   const toast = useToast();
   const meta = useMeta();
-  const isNational = rankingType === 'national';
+  const columns = columnsFor(meta.data?.entry_columns, rankingType);
+  const labelOf = (key: string) => columns.find((c) => c.key === key)?.label;
+  const showCategory = rankingType === 'national' || columns.some((c) => c.key === 'national_category_label');
   const [name, setName] = useState('');
   const [pos, setPos] = useState('');
   const [country, setCountry] = useState('');
-  const [points, setPoints] = useState('');
+  const [categoryPosition, setCategoryPosition] = useState('');
   const [nationalCategory, setNationalCategory] = useState('');
 
   const create = useMutation({
     mutationFn: () => {
-      const body: any = {
+      const body: EntryInput = {
         player_name: name.trim(),
         ranking_position: Number(pos),
       };
-      if (country.trim()) body.country = country.trim().toUpperCase();
-      if (isNational) {
-        body.national_category = nationalCategory;
-      } else if (points.trim()) {
-        body.points = Number(points);
-      }
+      if (country) body.country = country;
+      if (categoryPosition.trim()) body.category_position = Number(categoryPosition);
+      if (showCategory) body.national_category = nationalCategory;
       return entriesApi.create(rankingId, body);
     },
     onSuccess: () => {
@@ -580,53 +618,81 @@ function AddEntryPanel({
     onError: (e) => toast.error(e),
   });
 
-  const canSubmit = name.trim() && pos && (!isNational || nationalCategory);
+  const canSubmit = name.trim() && pos && (!showCategory || nationalCategory);
 
   return (
     <div className="card p-4">
       <div className="text-xs uppercase tracking-wider text-white/50 mb-3">Añadir entrada</div>
-      <div
-        className={
-          'grid grid-cols-1 gap-2 ' +
-          (isNational
-            ? 'sm:grid-cols-[80px_1fr_140px_80px_auto]'
-            : 'sm:grid-cols-[80px_1fr_80px_100px_auto]')
-        }
-      >
-        <input className="input" placeholder="#" value={pos}
-          onChange={(e) => setPos(e.target.value.replace(/[^0-9]/g, ''))} />
-        <input className="input" placeholder="Nombre del jugador" value={name}
-          onChange={(e) => setName(e.target.value)} />
-        {isNational && (
-          <select
-            className="input"
-            value={nationalCategory}
-            onChange={(e) => setNationalCategory(e.target.value)}
-          >
-            <option value="">Categoría…</option>
-            {meta.data?.national_categories?.map(c => (
-              <option key={c.id} value={c.id}>{c.label}</option>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Field label={labelOf('player_name')}>
+          <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
+        </Field>
+        {showCategory && (
+          <Field label={labelOf('national_category_label')}>
+            <select
+              className="input"
+              value={nationalCategory}
+              onChange={(e) => setNationalCategory(e.target.value)}
+            >
+              <option value="">Selecciona…</option>
+              {meta.data?.national_categories?.map(c => (
+                <option key={c.id} value={c.id}>{c.label}</option>
+              ))}
+            </select>
+          </Field>
+        )}
+        <Field label={labelOf('category_position')} hint={columns.find(c => c.key === 'category_position')?.hint}>
+          <input
+            className="input tabular-nums"
+            inputMode="numeric"
+            value={categoryPosition}
+            onChange={(e) => setCategoryPosition(e.target.value.replace(/[^0-9]/g, ''))}
+          />
+        </Field>
+        <Field label={labelOf('ranking_position')} hint={columns.find(c => c.key === 'ranking_position')?.hint}>
+          <input
+            className="input tabular-nums"
+            inputMode="numeric"
+            value={pos}
+            onChange={(e) => setPos(e.target.value.replace(/[^0-9]/g, ''))}
+          />
+        </Field>
+        <Field label="País">
+          <select className="input" value={country} onChange={(e) => setCountry(e.target.value)}>
+            <option value="">Opcional</option>
+            {meta.data?.countries.map(c => (
+              <option key={c.code} value={c.code}>{c.name}</option>
             ))}
           </select>
-        )}
-        <input className="input uppercase" placeholder="País" maxLength={3} value={country}
-          onChange={(e) => setCountry(e.target.value)} />
-        {!isNational && (
-          <input className="input" placeholder="Puntos" value={points}
-            onChange={(e) => setPoints(e.target.value.replace(/[^0-9.]/g, ''))} />
-        )}
-        <div className="flex gap-2">
-          <button
-            className="btn-primary"
-            onClick={() => canSubmit && create.mutate()}
-            disabled={!canSubmit || create.isPending}
-          >
-            Añadir
-          </button>
-          <button className="btn" onClick={onDone}>Cancelar</button>
-        </div>
+        </Field>
+      </div>
+      <div className="flex gap-2 mt-3 justify-end">
+        <button className="btn" onClick={onDone}>Cancelar</button>
+        <button
+          className="btn-primary"
+          onClick={() => canSubmit && create.mutate()}
+          disabled={!canSubmit || create.isPending}
+        >
+          Añadir
+        </button>
       </div>
     </div>
+  );
+}
+
+function Field({
+  label, hint, children,
+}: {
+  label?: string;
+  hint?: string;
+  children: ReactNode;
+}) {
+  return (
+    <label className="block">
+      {label && <span className="label">{label}</span>}
+      {children}
+      {hint && <span className="mt-1 block text-[11px] text-white/40 leading-snug">{hint}</span>}
+    </label>
   );
 }
 

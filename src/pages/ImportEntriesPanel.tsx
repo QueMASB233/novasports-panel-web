@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { entriesApi } from '@/api/endpoints';
 import { downloadFile } from '@/api/client';
@@ -20,12 +20,16 @@ export function ImportEntriesPanel({
   const confirm = useConfirm();
   const meta = useMeta();
   const [csv, setCsv] = useState('');
+  const [fileName, setFileName] = useState('');
   const [replace, setReplace] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const formats = meta.data?.csv_formats;
   const dashKey = rankingType.replace(/_/g, '-');
-  const format = formats?.[rankingType] || formats?.[dashKey];
+  const format =
+    formats?.[rankingType]
+    || formats?.[dashKey]
+    || (rankingType === 'fip_promises' ? formats?.fip : undefined);
   const [downloading, setDownloading] = useState(false);
 
   const onDownloadExample = async () => {
@@ -39,11 +43,6 @@ export function ImportEntriesPanel({
       setDownloading(false);
     }
   };
-
-  const lineCount = useMemo(() => {
-    const raw = csv.split(/\r?\n/).filter(l => l.trim().length > 0);
-    return Math.max(0, raw.length - 1); // menos header
-  }, [csv]);
 
   const submit = useMutation({
     mutationFn: () => entriesApi.importCsv(rankingId, { csv, replace }),
@@ -61,6 +60,7 @@ export function ImportEntriesPanel({
 
   const onFile = (f: File | null | undefined) => {
     if (!f) return;
+    setFileName(f.name);
     const reader = new FileReader();
     reader.onload = () => setCsv(String(reader.result || ''));
     reader.readAsText(f);
@@ -154,9 +154,9 @@ export function ImportEntriesPanel({
         <button className="btn" onClick={() => fileInputRef.current?.click()}>
           Cargar archivo…
         </button>
-        <button className="btn-ghost" onClick={() => setCsv('')}>Limpiar</button>
-        <div className="text-xs text-white/50 ml-auto">
-          {lineCount} filas detectadas
+        <button className="btn-ghost" onClick={() => { setCsv(''); setFileName(''); }}>Limpiar</button>
+        <div className="text-xs text-white/50 ml-auto truncate max-w-[240px]">
+          {fileName || (csv ? 'Texto pegado' : 'Sin archivo')}
         </div>
       </div>
 

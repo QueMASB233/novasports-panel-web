@@ -1,6 +1,7 @@
 export type RankingType = 'national' | 'country_open' | 'fip' | 'fip_promises';
 
 export type RankingCreateField =
+  | 'ranking_type'
   | 'display_name'
   | 'country'
   | 'age_bracket'
@@ -50,7 +51,7 @@ export type Entry = {
   player_name: string;
   country: string | null;
   ranking_position: number | null;
-  points: number | null;
+  category_position: number | null;
   national_category: string | null;
   national_category_label: string | null;
   display_label: string | null;
@@ -78,6 +79,12 @@ export type LinkedEntry = Entry & {
 
 export type MetaOption = { id: string; label: string; ovr?: number };
 export type CountryOption = { code: string; name: string };
+export type EntryColumn = {
+  key: string;
+  label: string;
+  hint?: string;
+  ranking_types?: string[];
+};
 export type OvrRow = { max_position: number; ovr: number };
 
 export type CsvFormat = {
@@ -97,6 +104,7 @@ export type Meta = {
   fip_sub_categories: MetaOption[];
   national_categories: MetaOption[];
   countries: CountryOption[];
+  entry_columns?: EntryColumn[];
   ovr_reference: Record<
     string,
     { table: OvrRow[]; beyond: string }
