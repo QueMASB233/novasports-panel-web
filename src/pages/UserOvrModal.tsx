@@ -4,6 +4,7 @@ import { Modal } from '@/ui/Modal';
 import { usersApi } from '@/api/endpoints';
 import { useToast } from '@/ui/Toast';
 import type { UserRow } from '@/types';
+import { formatOvr } from '@/lib/formatOvr';
 
 export function UserOvrModal({
   user, onClose,
@@ -18,7 +19,8 @@ export function UserOvrModal({
 
   useEffect(() => {
     if (user) {
-      setOvr(user.overall_rating_override != null ? String(user.overall_rating_override) : '');
+      const override = formatOvr(user.overall_rating_override);
+      setOvr(override === '—' ? '' : override);
       setClear(false);
     }
   }, [user]);
@@ -45,9 +47,9 @@ export function UserOvrModal({
         onSubmit={(e) => { e.preventDefault(); if (canSubmit) mutate.mutate(); }}
       >
         <div className="text-xs text-white/60">
-          OVR calculado actual: <span className="text-white">{user?.overall_rating ?? '—'}</span>
+          OVR calculado actual: <span className="text-white">{formatOvr(user?.overall_rating)}</span>
           {user?.overall_rating_override != null && (
-            <> · Override activo: <span className="text-nova-cyan">{user.overall_rating_override}</span></>
+            <> · Override activo: <span className="text-nova-cyan">{formatOvr(user.overall_rating_override)}</span></>
           )}
         </div>
 

@@ -9,6 +9,7 @@ import { SkeletonRows } from '@/ui/Skeleton';
 import { EmptyState } from '@/ui/EmptyState';
 import { APP_ROLE_LABEL, AccountStatusBadge, RoleBadges } from '@/ui/Badge';
 import type { AccountStatus, UserRow } from '@/types';
+import { formatOvr } from '@/lib/formatOvr';
 
 const DELETED_HINT = 'Cuenta eliminada: no se puede modificar';
 
@@ -170,9 +171,9 @@ export function UsersPage() {
                 <td className="td"><RoleBadges roles={u.roles || []} /></td>
                 <td className="td"><AccountStatusBadge status={u.account_status} /></td>
                 <td className="td text-right tabular-nums">
-                  <div>{u.overall_rating ?? '—'}</div>
+                  <div>{formatOvr(u.overall_rating)}</div>
                   {u.overall_rating_override != null && (
-                    <div className="text-[10px] text-nova-cyan">override {u.overall_rating_override}</div>
+                    <div className="text-[10px] text-nova-cyan">override {formatOvr(u.overall_rating_override)}</div>
                   )}
                 </td>
                 <td className="td">

@@ -12,6 +12,7 @@ import { SegmentedControl, type Segment } from '@/ui/SegmentedControl';
 import { SkeletonRows } from '@/ui/Skeleton';
 import { EmptyState } from '@/ui/EmptyState';
 import type { LinkedEntry } from '@/types';
+import { formatOvr } from '@/lib/formatOvr';
 
 type Tab = 'pending' | 'confirmed' | 'all';
 
@@ -185,7 +186,7 @@ export function LinksPage() {
                         <div>
                           <div className="font-medium">{l.matched_athlete.full_name}</div>
                           <div className="text-[11px] text-white/50">
-                            OVR {l.matched_athlete.overall_rating ?? '—'}
+                            OVR {formatOvr(l.matched_athlete.overall_rating)}
                           </div>
                         </div>
                       </div>

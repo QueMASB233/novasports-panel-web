@@ -12,6 +12,7 @@ import { useToast } from '@/ui/Toast';
 import { useConfirm } from '@/ui/Confirm';
 import type { Entry, EntryColumn, RankingSummary, RankingType } from '@/types';
 import { ImportEntriesPanel } from './ImportEntriesPanel';
+import { formatOvr } from '@/lib/formatOvr';
 
 export function RankingEditorPage() {
   const { id = '' } = useParams();
@@ -483,7 +484,7 @@ function EntriesTable({
                           )}
                         </div>
                         <div className="text-white/50">
-                          OVR {e.matched_athlete.overall_rating ?? '—'}
+                          OVR {formatOvr(e.matched_athlete.overall_rating)}
                           {e.linked_by_self && !e.admin_verified && (
                             <span className="ml-1 text-amber-300">· pendiente</span>
                           )}
