@@ -24,6 +24,7 @@ export function CreateRankingModal({ open, onClose }: Props) {
   const toast = useToast();
 
   const types = meta.data?.ranking_types || [];
+  const usesMeta = meta.data?.uses_national_categories;
   const [type, setType] = useState<RankingType | ''>('');
   const [displayName, setDisplayName] = useState('');
   const [country, setCountry] = useState('');
@@ -31,18 +32,37 @@ export function CreateRankingModal({ open, onClose }: Props) {
   const [fipSub, setFipSub] = useState('');
   const [genderId, setGenderId] = useState('');
   const [isActive, setIsActive] = useState(true);
+  const [usesCategories, setUsesCategories] = useState(true);
+
+  const showUsesToggle = !!type && (
+    usesMeta?.editable_ranking_types?.includes(type as RankingType)
+    || type === 'national'
+    || type === 'country_open'
+  );
 
   useEffect(() => {
     if (open) {
-      setType((types[0]?.id as RankingType | undefined) || '');
+      const initial = (types[0]?.id as RankingType | undefined) || '';
+      setType(initial);
       setDisplayName('');
       setCountry('');
       setAgeBracket('');
       setFipSub('');
       setGenderId('');
       setIsActive(true);
+      const def = initial
+        ? (usesMeta?.default_by_type?.[initial] ?? (initial === 'national' || initial === 'country_open'))
+        : true;
+      setUsesCategories(def);
     }
-  }, [open, types]);
+  }, [open, types, usesMeta]);
+
+  useEffect(() => {
+    if (!type) return;
+    const def = usesMeta?.default_by_type?.[type]
+      ?? (type === 'national' || type === 'country_open');
+    setUsesCategories(def);
+  }, [type, usesMeta]);
 
   const requiredFields: RankingCreateField[] = useMemo(() => {
     if (!type) return [];
@@ -86,6 +106,9 @@ export function CreateRankingModal({ open, onClose }: Props) {
     }
     if (meta.data?.ranking_genders) {
       body.gender_id = genderId || null;
+    }
+    if (showUsesToggle) {
+      body.uses_national_categories = usesCategories;
     }
 
     create.mutate(body);
@@ -171,6 +194,27 @@ export function CreateRankingModal({ open, onClose }: Props) {
               ))}
             </select>
           </div>
+        )}
+
+        {showUsesToggle && (
+          <label className="flex items-start gap-2 text-[13px] text-white/80">
+            <input
+              type="checkbox"
+              className="mt-0.5"
+              checked={usesCategories}
+              onChange={(e) => setUsesCategories(e.target.checked)}
+            />
+            <span>
+              <span className="block">
+                {usesMeta?.label || 'Usar categorías de nivel (1ª–7ª)'}
+              </span>
+              {usesMeta?.hint && (
+                <span className="block mt-0.5 text-[11px] text-white/45 leading-snug">
+                  {usesMeta.hint}
+                </span>
+              )}
+            </span>
+          </label>
         )}
 
         <label className="flex items-center gap-2 text-[13px] text-white/80">

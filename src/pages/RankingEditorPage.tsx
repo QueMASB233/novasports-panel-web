@@ -2,6 +2,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { entriesApi, rankingsApi, type EntryInput } from '@/api/endpoints';
+import { ApiError } from '@/api/client';
 import { useMeta } from '@/hooks/useMeta';
 import { TypeBadge, StatusDot } from '@/ui/Badge';
 import {
@@ -10,9 +11,55 @@ import {
 } from '@/ui/Icons';
 import { useToast } from '@/ui/Toast';
 import { useConfirm } from '@/ui/Confirm';
-import type { Entry, EntryColumn, RankingSummary, RankingType } from '@/types';
+import type {
+  Entry, EntryColumn, MultiCategoryLinkConflict, RankingSummary, RankingType,
+} from '@/types';
 import { ImportEntriesPanel } from './ImportEntriesPanel';
 import { formatOvr } from '@/lib/formatOvr';
+
+function rankingUsesCategories(ranking: RankingSummary): boolean {
+  if (typeof ranking.uses_national_categories === 'boolean') {
+    return ranking.uses_national_categories;
+  }
+  return ranking.ranking_type === 'national' || ranking.ranking_type === 'country_open';
+}
+
+async function showMultiCategoryLinksError(
+  confirm: ReturnType<typeof useConfirm>,
+  toast: ReturnType<typeof useToast>,
+  err: unknown,
+): Promise<boolean> {
+  if (!(err instanceof ApiError) || err.code !== 'multi_category_links') {
+    toast.error(err);
+    return false;
+  }
+  const conflicts = ((err.data as { conflicts?: MultiCategoryLinkConflict[] } | undefined)?.conflicts) || [];
+  const lines = conflicts.slice(0, 8).map((c) => {
+    const name = c.athlete_name || c.athlete_id;
+    const cats = (c.category_labels.length ? c.category_labels : c.categories).join(', ') || 'sin categoría';
+    return `· ${name} (${c.entry_count} vínculos: ${cats})`;
+  });
+  const more = conflicts.length > 8 ? `\n· …y ${conflicts.length - 8} más` : '';
+  await confirm({
+    title: 'No se pueden desactivar las categorías',
+    message: (
+      <div className="space-y-2">
+        <p>{err.message}</p>
+        {lines.length > 0 && (
+          <pre className="text-[12px] text-white/70 whitespace-pre-wrap font-sans leading-relaxed">
+            {lines.join('\n') + more}
+          </pre>
+        )}
+        <p className="text-[12px] text-white/50">
+          Desvincula o elimina las entradas extra en Vínculos / esta tabla y vuelve a intentarlo.
+        </p>
+      </div>
+    ),
+    confirmLabel: 'Entendido',
+    cancelLabel: 'Cerrar',
+  });
+  return true;
+}
 
 export function RankingEditorPage() {
   const { id = '' } = useParams();
@@ -47,11 +94,14 @@ export function RankingEditorPage() {
   const patch = useMutation({
     mutationFn: (body: Parameters<typeof rankingsApi.patch>[1]) =>
       rankingsApi.patch(id, body),
-    onSuccess: () => {
+    onSuccess: (d) => {
       qc.invalidateQueries({ queryKey: ['ranking', id] });
       qc.invalidateQueries({ queryKey: ['rankings'] });
+      qc.invalidateQueries({ queryKey: ['ranking-entries', id] });
+      const warning = d.warnings?.[0];
+      if (warning) toast.push('info', warning.message);
     },
-    onError: (e) => toast.error(e),
+    onError: (e) => { void showMultiCategoryLinksError(confirm, toast, e); },
   });
 
   const recalc = useMutation({
@@ -133,6 +183,11 @@ export function RankingEditorPage() {
                       {ranking.gender_label}
                     </span>
                   )}
+                  {(ranking.ranking_type === 'national' || ranking.ranking_type === 'country_open') && (
+                    <span className="badge border border-line bg-white/5 text-white/70">
+                      {rankingUsesCategories(ranking) ? 'Con categorías 1ª–7ª' : 'Sin categorías de nivel'}
+                    </span>
+                  )}
                   <span className="badge border border-line bg-white/5 text-white/70">
                     {ranking.entry_count ?? 0} entradas
                   </span>
@@ -201,6 +256,7 @@ export function RankingEditorPage() {
             <ImportEntriesPanel
               rankingId={id}
               rankingType={ranking.ranking_type}
+              entryFormat={ranking.entry_format || eq.data?.entry_format}
               onDone={() => setShowImport(false)}
             />
           )}
@@ -209,6 +265,7 @@ export function RankingEditorPage() {
             <AddEntryPanel
               rankingId={id}
               rankingType={ranking.ranking_type}
+              usesCategories={rankingUsesCategories(ranking)}
               onDone={() => setShowAdd(false)}
             />
           )}
@@ -219,6 +276,7 @@ export function RankingEditorPage() {
             error={eq.error as Error | null}
             rankingId={id}
             rankingType={ranking.ranking_type}
+            usesCategories={rankingUsesCategories(ranking)}
           />
         </div>
 
@@ -247,18 +305,22 @@ function HeaderEdit({
   onCancel: () => void;
 }) {
   const meta = useMeta();
+  const usesMeta = meta.data?.uses_national_categories;
+  const editable = ranking.uses_national_categories_editable
+    ?? (ranking.ranking_type === 'national' || ranking.ranking_type === 'country_open');
   const [displayName, setDisplayName] = useState(ranking.display_name);
   const [country, setCountry] = useState(ranking.country || '');
   const [ageBracket, setAgeBracket] = useState(ranking.age_bracket || '');
   const [fipSub, setFipSub] = useState(ranking.fip_sub_category || '');
   const [genderId, setGenderId] = useState(ranking.gender_id || '');
+  const [usesCategories, setUsesCategories] = useState(rankingUsesCategories(ranking));
 
   return (
     <form
       className="space-y-3 min-w-[300px]"
       onSubmit={(e) => {
         e.preventDefault();
-        const body: any = { display_name: displayName.trim() };
+        const body: Parameters<typeof rankingsApi.patch>[1] = { display_name: displayName.trim() };
         if (ranking.ranking_type === 'national') {
           body.country = country;
           body.age_bracket = ageBracket;
@@ -268,6 +330,7 @@ function HeaderEdit({
         }
         if (ranking.ranking_type === 'fip_promises') body.fip_sub_category = fipSub;
         if (meta.data?.ranking_genders) body.gender_id = genderId || null;
+        if (editable) body.uses_national_categories = usesCategories;
         onSave(body);
       }}
     >
@@ -282,7 +345,7 @@ function HeaderEdit({
             {meta.data?.countries.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}
           </select>
           <select className="input" value={ageBracket} onChange={(e) => setAgeBracket(e.target.value)}>
-            <option value="">Categoría…</option>
+            <option value="">Categoría de edad…</option>
             {meta.data?.age_brackets.map(a => <option key={a.id} value={a.id}>{a.label}</option>)}
           </select>
         </div>
@@ -308,6 +371,26 @@ function HeaderEdit({
           </select>
         </div>
       )}
+      {editable && (
+        <label className="flex items-start gap-2 text-[13px] text-white/80">
+          <input
+            type="checkbox"
+            className="mt-0.5"
+            checked={usesCategories}
+            onChange={(e) => setUsesCategories(e.target.checked)}
+          />
+          <span>
+            <span className="block">
+              {usesMeta?.label || 'Usar categorías de nivel (1ª–7ª)'}
+            </span>
+            {usesMeta?.hint && (
+              <span className="block mt-0.5 text-[11px] text-white/45 leading-snug">
+                {usesMeta.hint}
+              </span>
+            )}
+          </span>
+        </label>
+      )}
       <div className="flex gap-2">
         <button className="btn-primary"><IconCheck size={14} /> Guardar</button>
         <button type="button" className="btn" onClick={onCancel}>Cancelar</button>
@@ -318,10 +401,16 @@ function HeaderEdit({
 
 const NUMERIC_ENTRY_KEYS = new Set(['ranking_position', 'category_position']);
 
-function columnsFor(columns: EntryColumn[] | undefined, rankingType: string) {
-  return (columns || []).filter(
-    (c) => !c.ranking_types?.length || c.ranking_types.includes(rankingType),
-  );
+function columnsFor(
+  columns: EntryColumn[] | undefined,
+  rankingType: string,
+  usesCategories: boolean,
+) {
+  return (columns || []).filter((c) => {
+    if (c.key === 'national_category_label' && !usesCategories) return false;
+    if (c.ranking_types?.length && !c.ranking_types.includes(rankingType)) return false;
+    return true;
+  });
 }
 
 function entryCell(entry: Entry, key: string): ReactNode {
@@ -352,18 +441,19 @@ const UNIQUE_ID_RE = /^[A-Z0-9_-]{1,40}$/;
 
 // ---------- entries table ----------
 function EntriesTable({
-  entries, loading, error, rankingId, rankingType,
+  entries, loading, error, rankingId, rankingType, usesCategories,
 }: {
   entries: Entry[];
   loading: boolean;
   error: Error | null;
   rankingId: string;
   rankingType: RankingType;
+  usesCategories: boolean;
 }) {
   const meta = useMeta();
   const columns = useMemo(
-    () => columnsFor(meta.data?.entry_columns, rankingType),
-    [meta.data, rankingType],
+    () => columnsFor(meta.data?.entry_columns, rankingType, usesCategories),
+    [meta.data, rankingType, usesCategories],
   );
   const qc = useQueryClient();
   const toast = useToast();
@@ -441,6 +531,7 @@ function EntriesTable({
                 entry={e}
                 columns={columns}
                 rankingType={rankingType}
+                usesCategories={usesCategories}
                 onCancel={() => setEditingId(null)}
                 onSave={(body) => patch.mutate({ id: e.id, body })}
                 saving={patch.isPending}
@@ -517,11 +608,12 @@ function EntriesTable({
 }
 
 function InlineEditRow({
-  entry, columns, rankingType, onCancel, onSave, saving,
+  entry, columns, rankingType, usesCategories, onCancel, onSave, saving,
 }: {
   entry: Entry;
   columns: EntryColumn[];
   rankingType: RankingType;
+  usesCategories: boolean;
   onCancel: () => void;
   onSave: (body: EntryInput) => void;
   saving: boolean;
@@ -530,7 +622,7 @@ function InlineEditRow({
   const confirm = useConfirm();
   const toast = useToast();
   const categoryColumn = columns.find((c) => c.key === 'national_category_label');
-  const showCategory = rankingType === 'national' || !!categoryColumn;
+  const showCategory = usesCategories && !!categoryColumn;
   const allowBlankCategory = !!categoryColumn?.allow_blank_edit_types?.includes(rankingType);
   const [uniqueId, setUniqueId] = useState(entry.unique_id ?? '');
   const [name, setName] = useState(entry.player_name);
@@ -658,18 +750,19 @@ function InlineEditRow({
 
 // ---------- add entry ----------
 function AddEntryPanel({
-  rankingId, rankingType, onDone,
+  rankingId, rankingType, usesCategories, onDone,
 }: {
   rankingId: string;
   rankingType: RankingType;
+  usesCategories: boolean;
   onDone: () => void;
 }) {
   const qc = useQueryClient();
   const toast = useToast();
   const meta = useMeta();
-  const columns = columnsFor(meta.data?.entry_columns, rankingType);
+  const columns = columnsFor(meta.data?.entry_columns, rankingType, usesCategories);
   const labelOf = (key: string) => columns.find((c) => c.key === key)?.label;
-  const showCategory = rankingType === 'national' || columns.some((c) => c.key === 'national_category_label');
+  const showCategory = usesCategories;
   const [uniqueId, setUniqueId] = useState('');
   const [name, setName] = useState('');
   const [pos, setPos] = useState('');

@@ -13,6 +13,14 @@ export type RankingCreateSpec = {
   example?: Record<string, unknown>;
 };
 
+export type RankingEntryFormat = {
+  uses_national_categories: boolean;
+  show_category_column: boolean;
+  required_columns: string[];
+  optional_columns: string[];
+  description: string;
+};
+
 export type RankingSummary = {
   id: string;
   ranking_type: RankingType;
@@ -25,11 +33,22 @@ export type RankingSummary = {
   gender_id?: string | null;
   gender_label?: string | null;
   ranking_scope: string | null;
+  uses_national_categories?: boolean;
+  uses_national_categories_editable?: boolean;
+  entry_format?: RankingEntryFormat;
   is_active: boolean;
   created_at: string | null;
   updated_at: string | null;
   entry_count?: number;
   matched_count?: number;
+};
+
+export type MultiCategoryLinkConflict = {
+  athlete_id: string;
+  athlete_name: string | null;
+  entry_count: number;
+  categories: string[];
+  category_labels: string[];
 };
 
 export type MatchedAthlete = {
@@ -131,6 +150,12 @@ export type Meta = {
   unique_id_rules?: string;
   import_modes?: ImportModeOption[];
   create_ranking_bodies?: Record<string, RankingCreateSpec>;
+  uses_national_categories?: {
+    label: string;
+    hint?: string;
+    editable_ranking_types: RankingType[];
+    default_by_type: Record<RankingType, boolean>;
+  };
 };
 
 // ---------- ranking import (preview / apply) ----------

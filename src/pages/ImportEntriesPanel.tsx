@@ -1,13 +1,15 @@
 import { useRef, useState, type ReactNode } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { entriesApi } from '@/api/endpoints';
+import { entriesApi, rankingsApi } from '@/api/endpoints';
 import { downloadFile } from '@/api/client';
 import { useMeta } from '@/hooks/useMeta';
 import { useToast } from '@/ui/Toast';
 import { useConfirm } from '@/ui/Confirm';
 import { SegmentedControl } from '@/ui/SegmentedControl';
 import { IconCheck, IconRefresh, IconUpload, IconX } from '@/ui/Icons';
-import type { ImportMode, ImportModeOption, ImportSummary, RankingType } from '@/types';
+import type {
+  ImportMode, ImportModeOption, ImportSummary, RankingEntryFormat, RankingType,
+} from '@/types';
 
 const FALLBACK_MODES: ImportModeOption[] = [
   { id: 'update', label: 'Actualizar ranking', description: '', default: true },
@@ -16,10 +18,11 @@ const FALLBACK_MODES: ImportModeOption[] = [
 ];
 
 export function ImportEntriesPanel({
-  rankingId, rankingType, onDone,
+  rankingId, rankingType, entryFormat, onDone,
 }: {
   rankingId: string;
   rankingType: RankingType;
+  entryFormat?: RankingEntryFormat;
   onDone: () => void;
 }) {
   const qc = useQueryClient();
@@ -43,10 +46,22 @@ export function ImportEntriesPanel({
 
   const formats = meta.data?.csv_formats;
   const dashKey = rankingType.replace(/_/g, '-');
-  const format =
+  const typeFormat =
     formats?.[rankingType]
     || formats?.[dashKey]
     || (rankingType === 'fip_promises' ? formats?.fip : undefined);
+  const format = entryFormat
+    ? {
+        description: entryFormat.description,
+        required_columns: entryFormat.required_columns,
+        optional_columns: entryFormat.optional_columns,
+        example_download_path: rankingsApi.csvExamplePath(rankingId),
+        example_filename: entryFormat.uses_national_categories
+          ? 'ranking-import-con-categoria.csv'
+          : 'ranking-import-sin-categoria.csv',
+        header: entryFormat.required_columns.join(','),
+      }
+    : typeFormat;
   const [downloading, setDownloading] = useState(false);
 
   const onDownloadExample = async () => {

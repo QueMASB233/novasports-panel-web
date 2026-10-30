@@ -6,10 +6,13 @@ const STORAGE_KEY = 'novasports.session';
 export class ApiError extends Error {
   code: string;
   status: number;
-  constructor(message: string, code: string, status: number) {
+  /** Payload extra del error (p. ej. conflictos al apagar categorías). */
+  data?: unknown;
+  constructor(message: string, code: string, status: number, data?: unknown) {
     super(message);
     this.code = code;
     this.status = status;
+    this.data = data;
   }
 }
 
@@ -133,7 +136,7 @@ export async function apiRequest<T = any>(
       json?.message ||
       `Error ${res.status}`;
     const code = json?.error?.code || 'UNKNOWN';
-    throw new ApiError(message, code, res.status);
+    throw new ApiError(message, code, res.status, json?.data);
   }
 
   return json.data as T;

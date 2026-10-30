@@ -1,6 +1,6 @@
 import { apiRequest } from './client';
 import type {
-  Admin, Entry, LinkedEntry, Meta, RankingSummary, Session, RankingType,
+  Admin, Entry, LinkedEntry, Meta, RankingSummary, RankingEntryFormat, Session, RankingType,
   UserRow, AccountStatus, AccountStatusChange, PanelAdminRow, StorageCleanupSummary,
   ReportRow, ReportsMeta, ReportStatus, ReportsQueue,
   CoachTestimonial, TestimonialFilter, CoachCertification, CertificationFilter,
@@ -46,6 +46,7 @@ export type CreateRankingBody = {
   fip_sub_category?: string;
   gender_id?: string | null;
   is_active?: boolean;
+  uses_national_categories?: boolean;
 };
 
 export type PatchRankingBody = Partial<{
@@ -55,7 +56,13 @@ export type PatchRankingBody = Partial<{
   age_bracket: string;
   fip_sub_category: string;
   gender_id: string | null;
+  uses_national_categories: boolean;
 }>;
+
+export type RankingPatchResult = {
+  ranking: RankingSummary;
+  warnings?: Array<{ code: string; count: number; message: string }>;
+};
 
 export const rankingsApi = {
   list: (filter: RankingsFilter = {}) =>
@@ -65,7 +72,7 @@ export const rankingsApi = {
   create: (body: CreateRankingBody) =>
     apiRequest<{ ranking: RankingSummary }>('/admin/rankings', { method: 'POST', body }),
   patch: (id: string, body: PatchRankingBody) =>
-    apiRequest<{ ranking: RankingSummary }>(`/admin/rankings/${id}`, { method: 'PATCH', body }),
+    apiRequest<RankingPatchResult>(`/admin/rankings/${id}`, { method: 'PATCH', body }),
   remove: (id: string) =>
     apiRequest<{ deleted: true; recalculated_athletes: number }>(
       `/admin/rankings/${id}`, { method: 'DELETE' }
@@ -74,6 +81,7 @@ export const rankingsApi = {
     apiRequest<{ recalculated_athletes: number }>(
       `/admin/rankings/${id}/recalc`, { method: 'POST' }
     ),
+  csvExamplePath: (id: string) => `/admin/rankings/${id}/csv-example`,
 };
 
 // ---------- entries ----------
@@ -88,7 +96,11 @@ export type EntryInput = {
 
 export const entriesApi = {
   list: (rankingId: string, params: { search?: string; linked?: boolean } = {}) =>
-    apiRequest<{ ranking: RankingSummary; entries: Entry[] }>(
+    apiRequest<{
+      ranking: RankingSummary;
+      entries: Entry[];
+      entry_format?: RankingEntryFormat;
+    }>(
       `/admin/rankings/${rankingId}/entries`,
       { query: params }
     ),
