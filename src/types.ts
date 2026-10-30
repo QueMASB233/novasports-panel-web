@@ -103,7 +103,14 @@ export type LinkedEntry = Entry & {
   is_nova_verified?: boolean;
 };
 
-export type MetaOption = { id: string; label: string; ovr?: number };
+export type MetaOption = {
+  id: string;
+  label: string;
+  ovr?: number;
+  /** Presentación de ranking_genders (meta); el panel no lo pinta aún. */
+  icon_key?: string | null;
+  color_hex?: string | null;
+};
 export type CountryOption = { code: string; name: string };
 export type EntryColumn = {
   key: string;
