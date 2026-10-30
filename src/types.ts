@@ -122,6 +122,20 @@ export type EntryColumn = {
 };
 export type OvrRow = { max_position: number; ovr: number };
 
+export type OvrReferenceCategoryBand = {
+  table: OvrRow[];
+  /** Techo del #1 en esa categoría. */
+  cap: number;
+  beyond: string;
+};
+
+export type OvrReferenceBoard = {
+  table: OvrRow[];
+  beyond: string;
+  categories_note?: string;
+  by_category?: Record<string, OvrReferenceCategoryBand>;
+};
+
 export type CsvFormat = {
   header?: string;
   example?: string;
@@ -151,10 +165,7 @@ export type Meta = {
   ranking_genders?: MetaOption[];
   countries: CountryOption[];
   entry_columns?: EntryColumn[];
-  ovr_reference: Record<
-    string,
-    { table: OvrRow[]; beyond: string }
-  >;
+  ovr_reference: Record<string, OvrReferenceBoard>;
   csv_formats?: Record<string, CsvFormat>;
   unique_id_rules?: string;
   import_modes?: ImportModeOption[];

@@ -12,7 +12,8 @@ import {
 import { useToast } from '@/ui/Toast';
 import { useConfirm } from '@/ui/Confirm';
 import type {
-  Entry, EntryColumn, MultiCategoryLinkConflict, RankingSummary, RankingType,
+  Entry, EntryColumn, MetaOption, MultiCategoryLinkConflict, OvrReferenceBoard,
+  RankingSummary, RankingType,
 } from '@/types';
 import { ImportEntriesPanel } from './ImportEntriesPanel';
 import { formatOvr } from '@/lib/formatOvr';
@@ -354,7 +355,9 @@ export function RankingEditorPage() {
             </div>
             <OvrReference
               rankingType={ranking.ranking_type}
+              usesCategories={rankingUsesCategories(ranking)}
               meta={meta.data?.ovr_reference}
+              categories={meta.data?.national_categories}
             />
           </div>
         </aside>
@@ -956,24 +959,69 @@ function Field({
 
 // ---------- OVR reference ----------
 function OvrReference({
-  rankingType, meta,
+  rankingType, usesCategories, meta, categories,
 }: {
   rankingType: string;
-  meta?: Record<string, { table: { max_position: number; ovr: number }[]; beyond: string }>;
+  usesCategories: boolean;
+  meta?: Record<string, OvrReferenceBoard>;
+  categories?: MetaOption[];
 }) {
   const ref = meta?.[rankingType];
+  const canPickCategory = usesCategories
+    && !!ref?.by_category
+    && (rankingType === 'national' || rankingType === 'country_open');
+  const [categoryId, setCategoryId] = useState('primera');
+
   if (!ref) return <div className="text-white/40 text-xs">Sin referencia para este tipo.</div>;
+
+  const band = canPickCategory ? ref.by_category?.[categoryId] : undefined;
+  const table = band?.table ?? ref.table;
+  const beyond = band?.beyond ?? ref.beyond;
+
   return (
     <div>
+      {canPickCategory && (
+        <div className="mb-3 space-y-2">
+          {ref.categories_note && (
+            <p className="text-[11px] text-white/50 leading-relaxed">{ref.categories_note}</p>
+          )}
+          <label className="block">
+            <span className="label !mb-1">Categoría</span>
+            <select
+              className="input !py-1.5 !text-xs"
+              value={categoryId}
+              onChange={(e) => setCategoryId(e.target.value)}
+            >
+              {(categories || Object.keys(ref.by_category || {}).map((id) => ({ id, label: id }))).map((c) => (
+                <option key={c.id} value={c.id}>{c.label || c.id}</option>
+              ))}
+            </select>
+          </label>
+          {band && (
+            <p className="text-[11px] text-white/60 leading-relaxed">
+              #1 de esta categoría → OVR <span className="text-nova-cyan font-semibold tabular-nums">{band.cap}</span>
+              {' '}y de ahí para abajo.
+            </p>
+          )}
+        </div>
+      )}
+      {!canPickCategory && usesCategories === false
+        && (rankingType === 'national' || rankingType === 'country_open') && (
+        <p className="text-[11px] text-white/50 mb-2 leading-relaxed">
+          Este tablero no usa categorías 1ª–7ª: el OVR sigue el acumulado (curva base).
+        </p>
+      )}
       <table className="w-full text-xs">
         <thead>
           <tr>
-            <th className="th text-left !py-1">Hasta puesto</th>
+            <th className="th text-left !py-1">
+              {canPickCategory ? 'Hasta puesto (en categoría)' : 'Hasta puesto'}
+            </th>
             <th className="th text-right !py-1">OVR</th>
           </tr>
         </thead>
         <tbody>
-          {ref.table.map((r, i) => (
+          {table.map((r, i) => (
             <tr key={i}>
               <td className="td !py-1 text-white/70">≤ {r.max_position}</td>
               <td className="td !py-1 text-right tabular-nums font-semibold text-nova-cyan">
@@ -983,7 +1031,7 @@ function OvrReference({
           ))}
         </tbody>
       </table>
-      <p className="text-[11px] text-white/50 mt-2 leading-relaxed">{ref.beyond}</p>
+      <p className="text-[11px] text-white/50 mt-2 leading-relaxed">{beyond}</p>
     </div>
   );
 }
