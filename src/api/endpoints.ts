@@ -82,6 +82,20 @@ export const rankingsApi = {
       `/admin/rankings/${id}/recalc`, { method: 'POST' }
     ),
   csvExamplePath: (id: string) => `/admin/rankings/${id}/csv-example`,
+  /** Multipart field `logo`. No forma parte del create; fallos no deshacen el ranking. */
+  uploadLogo: (id: string, file: File) => {
+    const body = new FormData();
+    body.append('logo', file);
+    return apiRequest<{ ranking: RankingSummary }>(
+      `/admin/rankings/${id}/logo`,
+      { method: 'POST', body },
+    );
+  },
+  removeLogo: (id: string) =>
+    apiRequest<{ ranking: RankingSummary }>(
+      `/admin/rankings/${id}/logo`,
+      { method: 'DELETE' },
+    ),
 };
 
 // ---------- entries ----------

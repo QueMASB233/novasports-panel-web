@@ -12,6 +12,7 @@ import { useConfirm } from '@/ui/Confirm';
 import { SegmentedControl, type Segment } from '@/ui/SegmentedControl';
 import { SkeletonRows } from '@/ui/Skeleton';
 import { EmptyState } from '@/ui/EmptyState';
+import { RankingLogoCell } from '@/ui/RankingLogoThumb';
 
 
 export function RankingsListPage() {
@@ -153,6 +154,7 @@ export function RankingsListPage() {
           <thead className="bg-white/[.02]">
             <tr>
               <th className="th w-8"></th>
+              <th className="th w-10" aria-label="Logo"></th>
               <th className="th">Nombre</th>
               <th className="th">Tipo</th>
               <th className="th">Contexto</th>
@@ -163,14 +165,14 @@ export function RankingsListPage() {
             </tr>
           </thead>
           <tbody>
-            {q.isLoading && <SkeletonRows rows={6} cols={8} colSpans={['12px','60%','40%','50%','30%','30%','40%','40%']} />}
+            {q.isLoading && <SkeletonRows rows={6} cols={9} colSpans={['12px','28px','55%','40%','50%','30%','30%','40%','40%']} />}
             {q.isError && (
-              <tr><td className="td text-red-300" colSpan={8}>
+              <tr><td className="td text-red-300" colSpan={9}>
                 {(q.error as Error).message}
               </td></tr>
             )}
             {!q.isLoading && rankings.length === 0 && (
-              <tr><td colSpan={8}>
+              <tr><td colSpan={9}>
                 <EmptyState
                   compact
                   title="Sin rankings con los filtros seleccionados"
@@ -186,6 +188,9 @@ export function RankingsListPage() {
             {rankings.map(r => (
               <tr key={r.id} className="hover:bg-white/[.02]">
                 <td className="td"><StatusDot active={r.is_active} /></td>
+                <td className="td">
+                  <RankingLogoCell url={r.logo_url} size={28} />
+                </td>
                 <td className="td">
                   <Link to={`/rankings/${r.id}`} className="hover:text-nova-cyan">
                     {r.display_name}

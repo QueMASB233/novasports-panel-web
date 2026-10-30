@@ -91,7 +91,9 @@ export async function apiRequest<T = any>(
   const headers: Record<string, string> = {
     accept: 'application/json',
   };
-  if (body !== undefined) headers['content-type'] = 'application/json';
+  const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
+  // FormData: el browser pone multipart boundary; no forzar JSON.
+  if (body !== undefined && !isFormData) headers['content-type'] = 'application/json';
   if (auth) {
     const s = readSession();
     if (s?.access_token) headers.authorization = `Bearer ${s.access_token}`;
@@ -100,7 +102,7 @@ export async function apiRequest<T = any>(
   const res = await fetch(url.toString(), {
     method,
     headers,
-    body: body === undefined ? undefined : JSON.stringify(body),
+    body: body === undefined ? undefined : isFormData ? body : JSON.stringify(body),
   });
 
   let json: any = null;

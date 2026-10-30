@@ -6,6 +6,7 @@ import { rankingsApi, type CreateRankingBody } from '@/api/endpoints';
 import type { RankingType, RankingCreateField } from '@/types';
 import { useToast } from '@/ui/Toast';
 import { useNavigate } from 'react-router-dom';
+import { RankingLogoFileInput, RankingLogoThumb, RANKING_LOGO_HINT } from '@/ui/RankingLogoThumb';
 
 type Props = { open: boolean; onClose: () => void };
 
@@ -33,6 +34,8 @@ export function CreateRankingModal({ open, onClose }: Props) {
   const [genderId, setGenderId] = useState('');
   const [isActive, setIsActive] = useState(true);
   const [usesCategories, setUsesCategories] = useState(true);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
 
   const showUsesToggle = !!type && (
     usesMeta?.editable_ranking_types?.includes(type as RankingType)
@@ -50,12 +53,24 @@ export function CreateRankingModal({ open, onClose }: Props) {
       setFipSub('');
       setGenderId('');
       setIsActive(true);
+      setLogoFile(null);
+      setLogoPreview(null);
       const def = initial
         ? (usesMeta?.default_by_type?.[initial] ?? (initial === 'national' || initial === 'country_open'))
         : true;
       setUsesCategories(def);
     }
   }, [open, types, usesMeta]);
+
+  useEffect(() => {
+    if (!logoFile) {
+      setLogoPreview(null);
+      return;
+    }
+    const url = URL.createObjectURL(logoFile);
+    setLogoPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [logoFile]);
 
   useEffect(() => {
     if (!type) return;
@@ -71,9 +86,27 @@ export function CreateRankingModal({ open, onClose }: Props) {
   }, [type, meta.data]);
 
   const create = useMutation({
-    mutationFn: (body: CreateRankingBody) => rankingsApi.create(body),
-    onSuccess: ({ ranking }) => {
+    mutationFn: async (body: CreateRankingBody) => {
+      const { ranking } = await rankingsApi.create(body);
+      // El create no depende del logo: si falla el upload, el ranking ya existe.
+      if (logoFile) {
+        try {
+          await rankingsApi.uploadLogo(ranking.id, logoFile);
+        } catch (err) {
+          return { ranking, logoError: err };
+        }
+      }
+      return { ranking, logoError: null as unknown };
+    },
+    onSuccess: ({ ranking, logoError }) => {
       toast.success('Ranking creado');
+      if (logoError) {
+        toast.error(
+          logoError instanceof Error
+            ? `El ranking se creó, pero no se pudo subir el logo: ${logoError.message}`
+            : 'El ranking se creó, pero no se pudo subir el logo. Puedes reintentarlo en el editor.',
+        );
+      }
       qc.invalidateQueries({ queryKey: ['rankings'] });
       onClose();
       nav(`/rankings/${ranking.id}`);
@@ -216,6 +249,29 @@ export function CreateRankingModal({ open, onClose }: Props) {
             </span>
           </label>
         )}
+
+        <div>
+          <label className="label">Logo (opcional)</label>
+          <p className="text-[11px] text-white/45 mb-2 leading-snug">{RANKING_LOGO_HINT}</p>
+          <div className="flex items-center gap-3">
+            {logoPreview ? <RankingLogoThumb url={logoPreview} size={40} alt="Vista previa" /> : null}
+            <div className="min-w-0 flex-1">
+              <RankingLogoFileInput
+                onChange={setLogoFile}
+                disabled={create.isPending}
+              />
+              {logoFile ? (
+                <button
+                  type="button"
+                  className="mt-1 text-[11px] text-white/50 hover:text-white/80"
+                  onClick={() => setLogoFile(null)}
+                >
+                  Quitar selección
+                </button>
+              ) : null}
+            </div>
+          </div>
+        </div>
 
         <label className="flex items-center gap-2 text-[13px] text-white/80">
           <input

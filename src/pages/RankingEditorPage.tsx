@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { entriesApi, rankingsApi, type EntryInput } from '@/api/endpoints';
@@ -16,6 +16,7 @@ import type {
 } from '@/types';
 import { ImportEntriesPanel } from './ImportEntriesPanel';
 import { formatOvr } from '@/lib/formatOvr';
+import { RankingLogoCell, RANKING_LOGO_HINT } from '@/ui/RankingLogoThumb';
 
 function rankingUsesCategories(ranking: RankingSummary): boolean {
   if (typeof ranking.uses_national_categories === 'boolean') {
@@ -74,6 +75,7 @@ export function RankingEditorPage() {
   const [editingHeader, setEditingHeader] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
   const rq = useQuery({
     queryKey: ['ranking', id],
@@ -120,6 +122,28 @@ export function RankingEditorPage() {
     onError: (e) => toast.error(e),
   });
 
+  const uploadLogo = useMutation({
+    mutationFn: (file: File) => rankingsApi.uploadLogo(id, file),
+    onSuccess: () => {
+      toast.success('Logo actualizado');
+      qc.invalidateQueries({ queryKey: ['ranking', id] });
+      qc.invalidateQueries({ queryKey: ['rankings'] });
+    },
+    onError: (e) => toast.error(e),
+  });
+
+  const clearLogo = useMutation({
+    mutationFn: () => rankingsApi.removeLogo(id),
+    onSuccess: () => {
+      toast.success('Logo eliminado');
+      qc.invalidateQueries({ queryKey: ['ranking', id] });
+      qc.invalidateQueries({ queryKey: ['rankings'] });
+    },
+    onError: (e) => toast.error(e),
+  });
+
+  const logoBusy = uploadLogo.isPending || clearLogo.isPending;
+
   const onDelete = async () => {
     const ok = await confirm({
       title: 'Eliminar ranking',
@@ -160,47 +184,90 @@ export function RankingEditorPage() {
               />
             ) : (
               <>
-                <h1 className="heading">{ranking.display_name}</h1>
-                <div className="flex flex-wrap gap-2 mt-2 items-center">
-                  <TypeBadge type={ranking.ranking_type} label={ranking.ranking_type_label} />
-                  {ranking.country && (
-                    <span className="badge border border-line bg-white/5 text-white/70">
-                      {ranking.country}
-                    </span>
-                  )}
-                  {ranking.age_bracket_label && (
-                    <span className="badge border border-line bg-white/5 text-white/70">
-                      {ranking.age_bracket_label}
-                    </span>
-                  )}
-                  {ranking.fip_sub_category && (
-                    <span className="badge border border-line bg-white/5 text-white/70">
-                      {ranking.fip_sub_category}
-                    </span>
-                  )}
-                  {ranking.gender_label && (
-                    <span className="badge border border-line bg-white/5 text-white/70">
-                      {ranking.gender_label}
-                    </span>
-                  )}
-                  {(ranking.ranking_type === 'national' || ranking.ranking_type === 'country_open') && (
-                    <span className="badge border border-line bg-white/5 text-white/70">
-                      {rankingUsesCategories(ranking) ? 'Con categorías 1ª–7ª' : 'Sin categorías de nivel'}
-                    </span>
-                  )}
-                  <span className="badge border border-line bg-white/5 text-white/70">
-                    {ranking.entry_count ?? 0} entradas
-                  </span>
-                  <span className="badge border border-line bg-white/5 text-white/70">
-                    {ranking.matched_count ?? 0} vinculados
-                  </span>
+                <div className="flex items-start gap-3 min-w-0">
+                  <RankingLogoCell url={ranking.logo_url} size={48} />
+                  <div className="min-w-0">
+                    <h1 className="heading">{ranking.display_name}</h1>
+                    <div className="flex flex-wrap gap-2 mt-2 items-center">
+                      <TypeBadge type={ranking.ranking_type} label={ranking.ranking_type_label} />
+                      {ranking.country && (
+                        <span className="badge border border-line bg-white/5 text-white/70">
+                          {ranking.country}
+                        </span>
+                      )}
+                      {ranking.age_bracket_label && (
+                        <span className="badge border border-line bg-white/5 text-white/70">
+                          {ranking.age_bracket_label}
+                        </span>
+                      )}
+                      {ranking.fip_sub_category && (
+                        <span className="badge border border-line bg-white/5 text-white/70">
+                          {ranking.fip_sub_category}
+                        </span>
+                      )}
+                      {ranking.gender_label && (
+                        <span className="badge border border-line bg-white/5 text-white/70">
+                          {ranking.gender_label}
+                        </span>
+                      )}
+                      {(ranking.ranking_type === 'national' || ranking.ranking_type === 'country_open') && (
+                        <span className="badge border border-line bg-white/5 text-white/70">
+                          {rankingUsesCategories(ranking) ? 'Con categorías 1ª–7ª' : 'Sin categorías de nivel'}
+                        </span>
+                      )}
+                      <span className="badge border border-line bg-white/5 text-white/70">
+                        {ranking.entry_count ?? 0} entradas
+                      </span>
+                      <span className="badge border border-line bg-white/5 text-white/70">
+                        {ranking.matched_count ?? 0} vinculados
+                      </span>
+                    </div>
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <button
+                        className="btn-ghost !px-2 !py-1 text-xs text-white/60"
+                        onClick={() => setEditingHeader(true)}
+                      >
+                        <IconEdit size={12} /> Editar detalles
+                      </button>
+                      <input
+                        ref={logoInputRef}
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          e.target.value = '';
+                          if (file) uploadLogo.mutate(file);
+                        }}
+                      />
+                      <button
+                        type="button"
+                        className="btn-ghost !px-2 !py-1 text-xs text-white/60"
+                        disabled={logoBusy}
+                        onClick={() => logoInputRef.current?.click()}
+                        title={RANKING_LOGO_HINT}
+                      >
+                        <IconUpload size={12} />
+                        {logoBusy && uploadLogo.isPending
+                          ? 'Subiendo…'
+                          : ranking.logo_url
+                            ? 'Cambiar logo'
+                            : 'Añadir logo'}
+                      </button>
+                      {ranking.logo_url ? (
+                        <button
+                          type="button"
+                          className="btn-ghost !px-2 !py-1 text-xs text-red-300/80"
+                          disabled={logoBusy}
+                          onClick={() => clearLogo.mutate()}
+                        >
+                          {clearLogo.isPending ? 'Quitando…' : 'Quitar logo'}
+                        </button>
+                      ) : null}
+                    </div>
+                    <p className="mt-1 text-[11px] text-white/40">{RANKING_LOGO_HINT}</p>
+                  </div>
                 </div>
-                <button
-                  className="btn-ghost mt-2 !px-2 !py-1 text-xs text-white/60"
-                  onClick={() => setEditingHeader(true)}
-                >
-                  <IconEdit size={12} /> Editar detalles
-                </button>
               </>
             )}
           </div>

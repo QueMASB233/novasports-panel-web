@@ -36,6 +36,8 @@ export type RankingSummary = {
   uses_national_categories?: boolean;
   uses_national_categories_editable?: boolean;
   entry_format?: RankingEntryFormat;
+  /** URL pública del logo (opcional). Recomendado 1:1. */
+  logo_url?: string | null;
   is_active: boolean;
   created_at: string | null;
   updated_at: string | null;
