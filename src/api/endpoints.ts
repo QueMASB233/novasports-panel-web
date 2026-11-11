@@ -65,7 +65,6 @@ export type RankingPatchResult = {
 };
 
 export type ReorderRankingsBody = {
-  ranking_type: RankingType;
   ordered_ids: string[];
 };
 

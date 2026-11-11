@@ -58,7 +58,7 @@ export function RankingsListPage() {
   }), [tab, country, ageBracket, active]);
 
   const canReorder = useMemo(() => {
-    if (tab === 'all') return false;
+    if (tab !== 'all') return false;
     if (search.trim()) return false;
     if (country) return false;
     if (ageBracket) return false;
@@ -68,13 +68,13 @@ export function RankingsListPage() {
 
   const reorderHint = useMemo(() => {
     if (canReorder) {
-      return 'Arrastra las filas para definir el orden en la app (1 = primero en las pills).';
+      return 'Arrastra las filas para el orden global en la app (1 = primero). La nacionalidad del jugador sigue priorizándose en Discover.';
     }
-    if (tab === 'all') {
-      return 'Elige un tipo de ranking para poder arrastrar y ordenar.';
+    if (tab !== 'all') {
+      return 'Ve a la pestaña Todos (sin filtros) para reordenar todos los rankings juntos.';
     }
     if (search.trim() || country || ageBracket || active !== '') {
-      return 'Quita búsqueda y filtros (país, categoría, estado) para reordenar todo el tipo.';
+      return 'Quita búsqueda y filtros (país, categoría, estado) para reordenar.';
     }
     return null;
   }, [canReorder, tab, search, country, ageBracket, active]);
@@ -120,11 +120,8 @@ export function RankingsListPage() {
 
   const reorder = useMutation({
     mutationFn: (ordered_ids: string[]) => {
-      if (tab === 'all') throw new Error('Elige un tipo para reordenar');
-      return rankingsApi.reorder({
-        ranking_type: tab,
-        ordered_ids,
-      });
+      if (tab !== 'all') throw new Error('Reordena desde la pestaña Todos');
+      return rankingsApi.reorder({ ordered_ids });
     },
     onSuccess: (data) => {
       setOrdered(data.rankings);
