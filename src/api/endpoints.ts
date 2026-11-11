@@ -64,6 +64,11 @@ export type RankingPatchResult = {
   warnings?: Array<{ code: string; count: number; message: string }>;
 };
 
+export type ReorderRankingsBody = {
+  ranking_type: RankingType;
+  ordered_ids: string[];
+};
+
 export const rankingsApi = {
   list: (filter: RankingsFilter = {}) =>
     apiRequest<{ rankings: RankingSummary[] }>('/admin/rankings', { query: filter as any }),
@@ -80,6 +85,12 @@ export const rankingsApi = {
   recalc: (id: string) =>
     apiRequest<{ recalculated_athletes: number }>(
       `/admin/rankings/${id}/recalc`, { method: 'POST' }
+    ),
+  /** Reordena el grupo completo (tipo + país si aplica). */
+  reorder: (body: ReorderRankingsBody) =>
+    apiRequest<{ rankings: RankingSummary[] }>(
+      '/admin/rankings/reorder',
+      { method: 'PUT', body },
     ),
   csvExamplePath: (id: string) => `/admin/rankings/${id}/csv-example`,
   /** Multipart field `logo`. No forma parte del create; fallos no deshacen el ranking. */

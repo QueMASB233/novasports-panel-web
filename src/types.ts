@@ -38,6 +38,8 @@ export type RankingSummary = {
   entry_format?: RankingEntryFormat;
   /** URL pública del logo (opcional). Recomendado 1:1. */
   logo_url?: string | null;
+  /** Orden en panel/app dentro del tipo. Menor = primero. */
+  display_order?: number;
   is_active: boolean;
   created_at: string | null;
   updated_at: string | null;

@@ -71,3 +71,13 @@ export const IconUpload = ({ size, className }: P) => (
 export const IconChevronLeft = ({ size, className }: P) => (
   <svg {...base(size)} className={className}><polyline points="15 18 9 12 15 6" /></svg>
 );
+export const IconGrip = ({ size, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <circle cx="9" cy="6" r="1.2" fill="currentColor" stroke="none" />
+    <circle cx="15" cy="6" r="1.2" fill="currentColor" stroke="none" />
+    <circle cx="9" cy="12" r="1.2" fill="currentColor" stroke="none" />
+    <circle cx="15" cy="12" r="1.2" fill="currentColor" stroke="none" />
+    <circle cx="9" cy="18" r="1.2" fill="currentColor" stroke="none" />
+    <circle cx="15" cy="18" r="1.2" fill="currentColor" stroke="none" />
+  </svg>
+);
