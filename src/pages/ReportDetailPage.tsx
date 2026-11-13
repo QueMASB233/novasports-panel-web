@@ -7,6 +7,7 @@ import { useToast } from '@/ui/Toast';
 import { useConfirm } from '@/ui/Confirm';
 import { IconChevronLeft } from '@/ui/Icons';
 import type { AccountStatus, ReportRow, ReportStatus } from '@/types';
+import { Avatar } from '@/ui/Avatar';
 
 const STATUS_STYLES: Record<ReportStatus, string> = {
   open: 'border-amber-400/40 bg-amber-400/[.12] text-amber-200',
@@ -149,13 +150,9 @@ function PartyBlock({
       <div className="text-[11px] uppercase tracking-wider text-white/50 mb-2">{title}</div>
       {user ? (
         <div className="flex items-center gap-3">
-          {user.photo_url ? (
-            <img src={user.photo_url} className="w-11 h-11 rounded-full object-cover" alt="" />
-          ) : (
-            <div className="w-11 h-11 rounded-full bg-white/10" />
-          )}
+          <Avatar name={user.full_name || 'Usuario'} photoUrl={user.photo_url} size={44} />
           <div className="min-w-0 flex-1">
-            <div className="text-white font-medium truncate">{user.full_name || '—'}</div>
+            <div className="text-white font-medium truncate">{user.full_name || 'Usuario'}</div>
             <div className="text-[12px] text-white/60 truncate">{user.email || '—'}</div>
             {user.account_status && (
               <div className="text-[11px] text-white/60 mt-0.5">

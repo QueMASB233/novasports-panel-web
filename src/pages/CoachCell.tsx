@@ -1,21 +1,20 @@
 import type { CoachCertification, CoachSummary } from '@/types';
+import { Avatar } from '@/ui/Avatar';
 
 export function PersonCell({
-  name, photoUrl, sub,
+  name, photoUrl, sub, fallbackName = 'Usuario',
 }: {
   name: string | null | undefined;
   photoUrl: string | null | undefined;
   sub?: React.ReactNode;
+  fallbackName?: string;
 }) {
+  const label = (name || '').trim() || fallbackName;
   return (
     <div className="flex items-center gap-2.5">
-      {photoUrl ? (
-        <img src={photoUrl} className="w-8 h-8 rounded-full object-cover" alt="" />
-      ) : (
-        <div className="w-8 h-8 rounded-full bg-white/10" />
-      )}
+      <Avatar name={label} photoUrl={photoUrl} size={32} />
       <div className="min-w-0">
-        <div className="font-medium truncate">{name || '—'}</div>
+        <div className="font-medium truncate">{label}</div>
         {sub && <div className="text-[11px] text-white/50">{sub}</div>}
       </div>
     </div>
@@ -28,6 +27,7 @@ export function CoachCell({ coach }: { coach: CoachSummary | null }) {
     <PersonCell
       name={coach.full_name}
       photoUrl={coach.photo_url}
+      fallbackName="Usuario"
       sub={coach.onboarding_completed ? 'Onboarding completo' : 'En onboarding'}
     />
   );

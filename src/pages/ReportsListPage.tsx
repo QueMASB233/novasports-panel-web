@@ -7,6 +7,7 @@ import { SegmentedControl, type Segment } from '@/ui/SegmentedControl';
 import { SkeletonRows } from '@/ui/Skeleton';
 import { EmptyState } from '@/ui/EmptyState';
 import type { ReportRow, ReportStatus, AccountStatus } from '@/types';
+import { Avatar } from '@/ui/Avatar';
 
 const PAGE_SIZE = 50;
 
@@ -191,15 +192,12 @@ function ReportListRow({ report }: { report: ReportRow }) {
 
 function UserCell({ user }: { user: import('@/types').ReportUserSummary | null }) {
   if (!user) return <span className="text-white/40 text-[12px]">—</span>;
+  const name = user.full_name || 'Usuario';
   return (
     <div className="flex items-center gap-2">
-      {user.photo_url ? (
-        <img src={user.photo_url} className="w-7 h-7 rounded-full object-cover" alt="" />
-      ) : (
-        <div className="w-7 h-7 rounded-full bg-white/10" />
-      )}
+      <Avatar name={name} photoUrl={user.photo_url} size={28} />
       <div className="min-w-0">
-        <div className="text-white truncate">{user.full_name || '—'}</div>
+        <div className="text-white truncate">{name}</div>
         <div className="text-[11px] text-white/50 truncate">
           {user.email || '—'}
           {user.account_status && (

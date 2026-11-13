@@ -50,7 +50,7 @@ export function CertificationReviewModal({
     <Modal
       open={!!c}
       onClose={onClose}
-      title={c ? `Certificado — ${c.coach?.full_name || 'Coach'}` : ''}
+      title={c ? `Certificado — ${c.coach?.full_name || 'Usuario'}` : ''}
       width="max-w-4xl"
     >
       {c && (

@@ -10,6 +10,7 @@ import { EmptyState } from '@/ui/EmptyState';
 import { APP_ROLE_LABEL, AccountStatusBadge, RoleBadges } from '@/ui/Badge';
 import type { AccountStatus, UserRow } from '@/types';
 import { formatOvr } from '@/lib/formatOvr';
+import { Avatar } from '@/ui/Avatar';
 
 const DELETED_HINT = 'Cuenta eliminada: no se puede modificar';
 
@@ -149,13 +150,9 @@ export function UsersPage() {
               <tr key={u.id} className="hover:bg-white/[.02]">
                 <td className="td">
                   <div className="flex items-center gap-2">
-                    {u.photo_url ? (
-                      <img src={u.photo_url} alt="" className="w-7 h-7 rounded-full object-cover" />
-                    ) : (
-                      <div className="w-7 h-7 rounded-full bg-white/10" />
-                    )}
+                    <Avatar name={u.full_name || 'Usuario'} photoUrl={u.photo_url} size={28} />
                     <div>
-                      <div className="font-medium">{u.full_name || '—'}</div>
+                      <div className="font-medium">{u.full_name || 'Usuario'}</div>
                       {u.club_name && (
                         <div className="text-[11px] text-white/50">
                           {u.club_name}
