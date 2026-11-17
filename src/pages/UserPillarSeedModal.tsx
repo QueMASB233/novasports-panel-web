@@ -147,8 +147,9 @@ export function UserPillarSeedModal({
         }}
       >
         <p className="text-xs text-white/60 leading-relaxed">
-          Relleno admin · lo reemplaza el próximo test del coach. No cambia el OVR ni cuenta para logros.
-          Dejar un campo vacío limpia el seed de ese dato (si no está bloqueado).
+          Eval coach, seed admin, autoevaluación o vacío. El ranking solo (ceros de ficha) no aparece.
+          No cambia el OVR ni cuenta para logros. Vaciar un campo (si no está bloqueado) limpia ese
+          seed; limpiar todo no borra la autoevaluación.
         </p>
 
         {query.isLoading && (
@@ -183,7 +184,9 @@ export function UserPillarSeedModal({
                             ? 'text-amber-300/90'
                             : st.origin === 'admin_seed'
                               ? 'text-nova-cyan'
-                              : 'text-white/40')
+                              : st.origin === 'self'
+                                ? 'text-white/55'
+                                : 'text-white/40')
                         }
                       >
                         {locked ? 'Bloqueado · eval coach' : originLabel(st.origin)}

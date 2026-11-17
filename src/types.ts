@@ -328,6 +328,7 @@ export type UserRow = {
 };
 
 /** Estado de seed admin de pilares (GET/PATCH /admin/users/:id/pillar-seed). */
+/** coach | seed admin | autoevaluación | vacío. Ranking sin autoevaluación no aparece. */
 export type PillarSeedFieldOrigin = 'admin_seed' | 'coach' | 'self' | null;
 
 export type PillarSeedFieldState = {
