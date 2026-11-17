@@ -4,6 +4,7 @@ import { usersApi, type UsersFilter } from '@/api/endpoints';
 import { IconSearch, IconEdit } from '@/ui/Icons';
 import { AccountStatusModal, type AccountTarget } from './AccountStatusModal';
 import { UserOvrModal } from './UserOvrModal';
+import { UserPillarSeedModal } from './UserPillarSeedModal';
 import { useToast } from '@/ui/Toast';
 import { SkeletonRows } from '@/ui/Skeleton';
 import { EmptyState } from '@/ui/EmptyState';
@@ -37,6 +38,7 @@ export function UsersPage() {
   const [offset, setOffset] = useState(0);
   const [accountUser, setAccountUser] = useState<AccountTarget | null>(null);
   const [ovrUser, setOvrUser] = useState<UserRow | null>(null);
+  const [pillarUser, setPillarUser] = useState<UserRow | null>(null);
   const qc = useQueryClient();
   const toast = useToast();
 
@@ -222,6 +224,20 @@ export function UsersPage() {
                     >
                       <IconEdit size={14} /> OVR
                     </button>
+                    {u.roles.includes('player') && (
+                      <button
+                        className="btn-ghost !px-2 !py-1"
+                        onClick={() => setPillarUser(u)}
+                        disabled={u.account_status === 'deleted'}
+                        title={
+                          u.account_status === 'deleted'
+                            ? DELETED_HINT
+                            : 'Seed admin de pilares (carta)'
+                        }
+                      >
+                        Pilares
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>
@@ -261,6 +277,10 @@ export function UsersPage() {
       <UserOvrModal
         user={ovrUser}
         onClose={() => setOvrUser(null)}
+      />
+      <UserPillarSeedModal
+        user={pillarUser}
+        onClose={() => setPillarUser(null)}
       />
     </div>
   );

@@ -327,6 +327,44 @@ export type UserRow = {
   updated_at: string | null;
 };
 
+/** Estado de seed admin de pilares (GET/PATCH /admin/users/:id/pillar-seed). */
+export type PillarSeedFieldOrigin = 'admin_seed' | 'coach' | 'self' | null;
+
+export type PillarSeedFieldState = {
+  value: number | null;
+  locked: boolean;
+  origin: PillarSeedFieldOrigin;
+  seed_id: string | null;
+};
+
+export type PillarSeedState = {
+  athlete_id: string;
+  user_id: string;
+  overall_rating: number | null;
+  ovr_source: string | null;
+  pillars: {
+    phys: PillarSeedFieldState;
+    tech: PillarSeedFieldState;
+    tact: PillarSeedFieldState;
+    ment: PillarSeedFieldState;
+  };
+  aerial: PillarSeedFieldState;
+  volley: PillarSeedFieldState;
+  consistency: PillarSeedFieldState;
+};
+
+export type PillarSeedPatchBody = {
+  phys?: number | null;
+  tech?: number | null;
+  tact?: number | null;
+  ment?: number | null;
+  aerial?: number | null;
+  volley?: number | null;
+  consistency?: number | null;
+  clear_all?: boolean;
+  note?: string;
+};
+
 // ---------- maintenance ----------
 export type StorageCleanupSummary = {
   dry_run: boolean;

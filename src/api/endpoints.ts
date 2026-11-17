@@ -5,6 +5,7 @@ import type {
   ReportRow, ReportsMeta, ReportStatus, ReportsQueue,
   CoachTestimonial, TestimonialFilter, CoachCertification, CertificationFilter,
   CoachesPendingCounts, ImportMode, ImportSummary,
+  PillarSeedState, PillarSeedPatchBody,
 } from '@/types';
 
 // ---------- auth ----------
@@ -178,6 +179,13 @@ export const usersApi = {
   ) =>
     apiRequest<{ user: UserRow }>(
       `/admin/users/${userId}/ovr`, { method: 'PATCH', body }
+    ),
+  getPillarSeed: (userId: string) =>
+    apiRequest<{ seed: PillarSeedState }>(`/admin/users/${userId}/pillar-seed`),
+  patchPillarSeed: (userId: string, body: PillarSeedPatchBody) =>
+    apiRequest<{ seed: PillarSeedState; message?: string }>(
+      `/admin/users/${userId}/pillar-seed`,
+      { method: 'PATCH', body }
     ),
   patchWizard: (userId: string, granted: boolean) =>
     apiRequest<{ user: UserRow }>(
